@@ -345,6 +345,10 @@ function setNav(title, showBack, actionText, actionClass, actionFn) {
 async function signIn() {
   try {
     showLoading(true);
+    if (!msalInstance) {
+      msalInstance = new msal.PublicClientApplication(msalConfig);
+      await msalInstance.initialize();
+    }
     await msalInstance.handleRedirectPromise();
     const accounts = msalInstance.getAllAccounts();
     if (accounts.length > 0) {

@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>LAB Usage Log</title>
-<script src="https://alcdn.msauth.net/browser/2.38.3/js/msal-browser.min.js"></script>
+
 <style>
   :root {
     --bg: #F2F2F7;
@@ -345,10 +345,6 @@ function setNav(title, showBack, actionText, actionClass, actionFn) {
 async function signIn() {
   try {
     showLoading(true);
-    if (!msalInstance) {
-      msalInstance = new msal.PublicClientApplication(msalConfig);
-      await msalInstance.initialize();
-    }
     await msalInstance.handleRedirectPromise();
     const accounts = msalInstance.getAllAccounts();
     if (accounts.length > 0) {
@@ -575,7 +571,7 @@ function showLoading(show) {
 }
 
 // ── INIT ──────────────────────────────────────────────────
-(async () => {
+async function initApp() {
   try {
     msalInstance = new msal.PublicClientApplication(msalConfig);
     await msalInstance.initialize();
@@ -591,7 +587,8 @@ function showLoading(show) {
     showToast('❌ Init failed: ' + e.message);
   }
   renderEquipTags();
-})();
+}
 </script>
+<script src="https://alcdn.msauth.net/browser/2.38.3/js/msal-browser.min.js" onload="initApp()"></script>
 </body>
 </html>

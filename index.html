@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>LAB Usage Log</title>
+<script src="https://alcdn.msauth.net/browser/2.38.3/js/msal-browser.min.js"></script>
+<style>
+  :root {
+    --bg: #F2F2F7;
+    --card: #FFFFFF;
+    --header: #1C1C1E;
+    --text: #1C1C1E;
+    --text2: #6B6B6B;
+    --text3: #AEAEB2;
+    --blue: #0A84FF;
+    --red: #FF453A;
+    --green: #34C759;
+    --border: rgba(0,0,0,0.08);
+    --banner-bg: #E8F4FD;
+    --banner-text: #1A5F8A;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; font-family: -apple-system, 'SF Pro Text', 'Helvetica Neue', sans-serif; background: var(--bg); color: var(--text); }
+  body { display: flex; flex-direction: column; align-items: center; }
+
+  .app { width: 100%; max-width: 430px; min-height: 100vh; display: flex; flex-direction: column; background: var(--bg); position: relative; overflow: hidden; }
+
+  /* STATUS BAR */
+  .status-bar { background: var(--header); color: #fff; padding: 12px 20px 8px; display: flex; justify-content: space-between; font-size: 12px; font-weight: 600; letter-spacing: 0.2px; flex-shrink: 0; }
+
+  /* NAV BAR */
+  .nav-bar { background: var(--header); padding: 6px 16px 14px; display: flex; align-items: center; flex-shrink: 0; }
+  .nav-back { color: var(--blue); font-size: 16px; cursor: pointer; min-width: 60px; display: flex; align-items: center; gap: 4px; }
+  .nav-back:active { opacity: 0.6; }
+  .nav-title { flex: 1; color: #fff; font-size: 17px; font-weight: 600; text-align: center; letter-spacing: -0.3px; }
+  .nav-action { min-width: 60px; text-align: right; font-size: 16px; font-weight: 500; cursor: pointer; }
+  .nav-action:active { opacity: 0.6; }
+  .nav-action.red { color: var(--red); }
+  .nav-action.blue { color: var(--blue); }
+
+  /* SCREENS */
+  .screen { display: none; flex-direction: column; flex: 1; overflow-y: auto; }
+  .screen.active { display: flex; }
+
+  /* ── LOGIN SCREEN ── */
+  #loginScreen { align-items: center; justify-content: center; padding: 40px 24px; gap: 24px; }
+  .login-logo { width: 80px; height: 80px; background: var(--header); border-radius: 20px; display: flex; align-items: center; justify-content: center; font-size: 36px; }
+  .login-title { font-size: 28px; font-weight: 700; color: var(--text); letter-spacing: -0.5px; }
+  .login-sub { font-size: 15px; color: var(--text2); text-align: center; line-height: 1.5; }
+  .login-btn { background: var(--blue); color: #fff; border: none; border-radius: var(--radius); padding: 16px 32px; font-size: 17px; font-weight: 600; cursor: pointer; width: 100%; transition: opacity 0.15s; }
+  .login-btn:active { opacity: 0.8; }
+
+  /* ── SCAN SCREEN ── */
+  #scanScreen { padding: 24px 20px; gap: 20px; align-items: center; }
+  .viewfinder { width: 240px; height: 240px; background: var(--header); border-radius: 18px; position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0; }
+  .corner { position: absolute; width: 30px; height: 30px; border-color: var(--blue); border-style: solid; border-width: 0; }
+  .corner.tl { top: 14px; left: 14px; border-top-width: 3px; border-left-width: 3px; border-radius: 4px 0 0 0; }
+  .corner.tr { top: 14px; right: 14px; border-top-width: 3px; border-right-width: 3px; border-radius: 0 4px 0 0; }
+  .corner.bl { bottom: 14px; left: 14px; border-bottom-width: 3px; border-left-width: 3px; border-radius: 0 0 0 4px; }
+  .corner.br { bottom: 14px; right: 14px; border-bottom-width: 3px; border-right-width: 3px; border-radius: 0 0 4px 0; }
+  .scan-line { position: absolute; width: 80%; height: 2px; background: linear-gradient(90deg, transparent, var(--blue), transparent); animation: scanAnim 1.8s ease-in-out infinite; }
+  @keyframes scanAnim { 0% { top: 20%; } 100% { top: 80%; } }
+  .vf-icon { font-size: 52px; opacity: 0.12; }
+  .scan-label { font-size: 15px; color: var(--text2); text-align: center; line-height: 1.6; }
+  .scan-hint { font-size: 13px; color: var(--text3); text-align: center; }
+  .btn-primary { background: var(--blue); color: #fff; border: none; border-radius: var(--radius); padding: 15px; font-size: 16px; font-weight: 600; cursor: pointer; width: 100%; transition: all 0.15s; }
+  .btn-primary:active { opacity: 0.8; transform: scale(0.98); }
+  .btn-outline { background: var(--card); color: var(--blue); border: 1.5px solid var(--blue); border-radius: var(--radius); padding: 13px; font-size: 15px; font-weight: 500; cursor: pointer; width: 100%; transition: all 0.15s; }
+  .btn-outline:active { background: var(--banner-bg); transform: scale(0.98); }
+
+  /* ── FORM SCREEN ── */
+  #formScreen { padding: 14px 16px 40px; gap: 16px; }
+  .banner { background: var(--banner-bg); border-radius: 12px; padding: 10px 16px; display: flex; align-items: center; gap: 10px; }
+  .banner span { font-size: 13px; color: var(--banner-text); font-weight: 500; }
+  .section-label { font-size: 12px; font-weight: 700; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; padding: 0 2px; }
+  .card { background: var(--card); border-radius: var(--radius); overflow: hidden; border: 0.5px solid var(--border); }
+  .field-row { padding: 11px 16px; border-bottom: 0.5px solid rgba(0,0,0,0.05); display: flex; flex-direction: column; gap: 4px; }
+  .field-row:last-child { border-bottom: none; }
+  .field-row.inline { flex-direction: row; align-items: center; justify-content: space-between; }
+  .field-label { font-size: 11px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: 0.4px; }
+  .field-val { font-size: 15px; color: var(--text); font-weight: 500; }
+  .field-val.muted { color: var(--text3); font-weight: 400; }
+  .badge-qr { background: var(--banner-bg); color: var(--banner-text); font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 5px; letter-spacing: 0.3px; }
+  .field-input { background: none; border: none; outline: none; font-size: 15px; color: var(--text); font-family: inherit; width: 100%; }
+  .field-input::placeholder { color: var(--text3); }
+  select.field-input { -webkit-appearance: none; appearance: none; cursor: pointer; }
+  .qty-row { display: flex; align-items: center; gap: 8px; }
+  .qty-btn { width: 40px; height: 40px; border: none; border-radius: 10px; font-size: 22px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-weight: 300; transition: all 0.1s; flex-shrink: 0; }
+  .qty-btn.minus { background: #F2F2F7; color: var(--text); }
+  .qty-btn.plus { background: var(--blue); color: #fff; }
+  .qty-btn:active { transform: scale(0.92); }
+  .qty-display { flex: 1; text-align: center; font-size: 22px; font-weight: 700; color: var(--text); padding: 8px; background: none; border: none; outline: none; font-family: inherit; }
+  .equip-tags { display: flex; flex-wrap: wrap; gap: 6px; padding: 4px 0; }
+  .equip-tag { background: var(--banner-bg); color: var(--banner-text); border-radius: 8px; padding: 4px 10px; font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.1s; user-select: none; }
+  .equip-tag.selected { background: var(--blue); color: #fff; }
+  .equip-tag:active { transform: scale(0.95); }
+  .equip-search { background: #F2F2F7; border: none; border-radius: 10px; padding: 8px 12px; font-size: 14px; font-family: inherit; width: 100%; outline: none; color: var(--text); margin-bottom: 8px; }
+  .equip-search::placeholder { color: var(--text3); }
+  .btn-save { background: var(--blue); color: #fff; border: none; border-radius: var(--radius); padding: 16px; font-size: 17px; font-weight: 600; cursor: pointer; width: 100%; transition: all 0.15s; letter-spacing: -0.2px; }
+  .btn-save:active { opacity: 0.8; transform: scale(0.98); }
+  .btn-save:disabled { background: var(--text3); cursor: not-allowed; }
+  .btn-clear-all { background: var(--card); color: var(--red); border: 1.5px solid var(--red); border-radius: var(--radius); padding: 14px; font-size: 15px; font-weight: 600; cursor: pointer; width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.15s; }
+  .btn-clear-all:active { background: #FFF2F1; transform: scale(0.98); }
+
+  /* ── SUCCESS SCREEN ── */
+  #successScreen { align-items: center; padding: 40px 24px; gap: 16px; }
+  .success-ring { width: 80px; height: 80px; border-radius: 50%; background: #E3F9E5; display: flex; align-items: center; justify-content: center; font-size: 36px; animation: popIn 0.4s cubic-bezier(0.34,1.56,0.64,1); }
+  @keyframes popIn { from { transform: scale(0); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .success-title { font-size: 24px; font-weight: 700; color: var(--text); letter-spacing: -0.4px; }
+  .success-sub { font-size: 15px; color: var(--text2); text-align: center; line-height: 1.6; }
+  .summary-card { background: var(--card); border-radius: var(--radius); width: 100%; border: 0.5px solid var(--border); overflow: hidden; }
+  .sum-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 0.5px solid rgba(0,0,0,0.05); }
+  .sum-row:last-child { border-bottom: none; }
+  .sum-key { font-size: 14px; color: var(--text2); }
+  .sum-val { font-size: 14px; font-weight: 600; color: var(--text); text-align: right; max-width: 60%; }
+  .btn-next { background: var(--blue); color: #fff; border: none; border-radius: var(--radius); padding: 16px; font-size: 17px; font-weight: 600; cursor: pointer; width: 100%; transition: all 0.15s; }
+  .btn-next:active { opacity: 0.8; }
+  .btn-again { background: var(--card); color: var(--blue); border: 1.5px solid var(--blue); border-radius: var(--radius); padding: 14px; font-size: 15px; font-weight: 500; cursor: pointer; width: 100%; transition: all 0.15s; }
+  .btn-again:active { background: var(--banner-bg); }
+
+  /* MODAL */
+  .modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; align-items: flex-end; justify-content: center; }
+  .modal-bg.open { display: flex; }
+  .modal-sheet { background: var(--card); border-radius: 18px 18px 0 0; padding: 20px 20px 40px; width: 100%; max-width: 430px; animation: slideUp 0.25s ease; }
+  @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+  .modal-handle { width: 36px; height: 4px; background: #E0E0E0; border-radius: 2px; margin: 0 auto 16px; }
+  .modal-icon { width: 52px; height: 52px; background: #FFF2F1; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; margin: 0 auto 12px; }
+  .modal-title { font-size: 17px; font-weight: 700; color: var(--text); text-align: center; margin-bottom: 6px; }
+  .modal-sub { font-size: 14px; color: var(--text2); text-align: center; margin-bottom: 20px; line-height: 1.5; }
+  .modal-btns { display: flex; gap: 10px; }
+  .modal-cancel { flex: 1; padding: 14px; border-radius: 12px; background: #F2F2F7; border: none; font-size: 16px; font-weight: 600; color: var(--text); cursor: pointer; }
+  .modal-confirm { flex: 1; padding: 14px; border-radius: 12px; background: var(--red); border: none; color: #fff; font-size: 16px; font-weight: 600; cursor: pointer; }
+
+  /* TOAST */
+  .toast { position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%); background: var(--header); color: #fff; padding: 10px 20px; border-radius: 20px; font-size: 14px; font-weight: 500; white-space: nowrap; z-index: 200; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
+  .toast.show { opacity: 1; }
+
+  /* LOADING */
+  .loading-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.3); z-index: 300; align-items: center; justify-content: center; }
+  .loading-overlay.show { display: flex; }
+  .spinner { width: 48px; height: 48px; border: 4px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="status-bar"><span id="clock">9:41</span><span>●●● WiFi ▮▮▮</span></div>
+  <div class="nav-bar" id="navbar">
+    <span class="nav-back" id="navBack" onclick="goBack()" style="visibility:hidden;">‹ Back</span>
+    <span class="nav-title" id="navTitle">LAB Usage Log</span>
+    <span class="nav-action" id="navAction"></span>
+  </div>
+
+  <!-- LOGIN -->
+  <div class="screen active" id="loginScreen">
+    <div class="login-logo">🧪</div>
+    <div class="login-title">LAB Usage Log</div>
+    <div class="login-sub">Spare Parts Usage Tracker<br>Sign in with your Microsoft account</div>
+    <button class="login-btn" onclick="signIn()">Sign in with Microsoft</button>
+  </div>
+
+  <!-- SCAN -->
+  <div class="screen" id="scanScreen">
+    <div class="viewfinder">
+      <div class="corner tl"></div><div class="corner tr"></div>
+      <div class="corner bl"></div><div class="corner br"></div>
+      <div class="scan-line"></div>
+      <span class="vf-icon">▦</span>
+    </div>
+    <div>
+      <div class="scan-label">Point camera at the QR label<br>on the spare part</div>
+      <div class="scan-hint" style="margin-top:6px;">ชี้กล้องไปที่ QR label บน spare part</div>
+    </div>
+    <button class="btn-primary" onclick="openManual()">✎ &nbsp;Enter Part No. manually</button>
+    <button class="btn-outline" onclick="signOut()">Sign Out</button>
+  </div>
+
+  <!-- FORM -->
+  <div class="screen" id="formScreen">
+    <div class="banner" id="qrBanner" style="display:none;">
+      <span>✦</span>
+      <span>Pre-filled from QR: <strong id="bannerText"></strong></span>
+    </div>
+
+    <div class="section-label">Auto-filled</div>
+    <div class="card">
+      <div class="field-row inline">
+        <span class="field-label">Part No.</span>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="field-val" id="dispPartNo">—</span>
+          <span class="badge-qr" id="qrBadge1" style="display:none;">QR</span>
+        </div>
+      </div>
+      <div class="field-row inline">
+        <span class="field-label">Category</span>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="field-val" id="dispCategory">—</span>
+          <span class="badge-qr" id="qrBadge2" style="display:none;">QR</span>
+        </div>
+      </div>
+      <div class="field-row inline">
+        <span class="field-label">Date</span>
+        <span class="field-val" id="dispDate"></span>
+      </div>
+    </div>
+
+    <div class="section-label">Fill in</div>
+    <div class="card">
+      <div class="field-row">
+        <span class="field-label">Qty Used</span>
+        <div class="qty-row">
+          <button class="qty-btn minus" onclick="changeQty(-1)">−</button>
+          <input class="qty-display" id="qtyInput" type="number" value="1" min="0">
+          <button class="qty-btn plus" onclick="changeQty(1)">+</button>
+        </div>
+      </div>
+      <div class="field-row">
+        <span class="field-label">Requester</span>
+        <select class="field-input" id="requesterSelect">
+          <option value="Chayawut T.">Chayawut T.</option>
+          <option value="Chayapat H.">Chayapat H.</option>
+          <option value="Tula N.">Tula N.</option>
+          <option value="Nirinya K.">Nirinya K.</option>
+          <option value="Panyaporn K.">Panyaporn K.</option>
+          <option value="Thaweekoon I.">Thaweekoon I.</option>
+          <option value="Wasachanok P.">Wasachanok P.</option>
+          <option value="Thanapong K.">Thanapong K.</option>
+        </select>
+      </div>
+      <div class="field-row">
+        <span class="field-label">Used For Equipment</span>
+        <input class="equip-search" id="equipSearch" placeholder="Search equipment…" oninput="filterEquip()">
+        <div class="equip-tags" id="equipTags"></div>
+      </div>
+      <div class="field-row">
+        <span class="field-label">Used For Project</span>
+        <input class="field-input" id="projectInput" placeholder="Project name or code…">
+      </div>
+    </div>
+
+    <button class="btn-save" id="btnSave" onclick="handleSave()">Save to tbl_Usage ✓</button>
+    <button class="btn-clear-all" onclick="document.getElementById('clearModal').classList.add('open')">🗑 &nbsp;Clear All Fields</button>
+  </div>
+
+  <!-- SUCCESS -->
+  <div class="screen" id="successScreen">
+    <div class="success-ring">✓</div>
+    <div class="success-title">Saved Successfully</div>
+    <div class="success-sub">บันทึกลง tbl_Usage เรียบร้อยแล้ว</div>
+    <div class="summary-card">
+      <div class="sum-row"><span class="sum-key">Part No.</span><span class="sum-val" id="sPart">—</span></div>
+      <div class="sum-row"><span class="sum-key">Category</span><span class="sum-val" id="sCat">—</span></div>
+      <div class="sum-row"><span class="sum-key">Qty Used</span><span class="sum-val" id="sQty">—</span></div>
+      <div class="sum-row"><span class="sum-key">Requester</span><span class="sum-val" id="sReq">—</span></div>
+      <div class="sum-row"><span class="sum-key">Equipment</span><span class="sum-val" id="sEquip">—</span></div>
+      <div class="sum-row"><span class="sum-key">Project</span><span class="sum-val" id="sProject">—</span></div>
+      <div class="sum-row"><span class="sum-key">Date</span><span class="sum-val" id="sDate">—</span></div>
+    </div>
+    <button class="btn-next" onclick="goScan()">▦ &nbsp;Scan Next Part</button>
+    <button class="btn-again" onclick="goFormAgain()">↩ &nbsp;Same Part, New Entry</button>
+  </div>
+</div>
+
+<!-- CLEAR MODAL -->
+<div class="modal-bg" id="clearModal">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-icon">🗑</div>
+    <div class="modal-title">Clear All Fields?</div>
+    <div class="modal-sub">ข้อมูลทั้งหมดในฟอร์มจะถูกล้าง<br>ยกเว้น Part No. และ Category จาก QR</div>
+    <div class="modal-btns">
+      <button class="modal-cancel" onclick="document.getElementById('clearModal').classList.remove('open')">Cancel</button>
+      <button class="modal-confirm" onclick="confirmClear()">Clear</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<div class="loading-overlay" id="loading"><div class="spinner"></div></div>
+
+<script>
+// ── CONFIG ──────────────────────────────────────────────
+const CLIENT_ID  = 'c8f69fa2-8f20-4838-a293-1d2ba931c6f5';
+const TENANT_ID  = 'dbfc100f-faab-41cc-9670-6d139e669156';
+const SITE_URL   = 'https://emasenergy.sharepoint.com/sites/og-dpt-ops-lab';
+const FILE_NAME  = 'LAB Spare Parts Tracker (FIFO) 2026.xlsx';
+const TABLE_NAME = 'tbl_Usage';
+
+const EQUIPMENT = [
+  'ATM','Blender #1','Blender #2','Blender #3','CHA',
+  'Curing #1','Curing #2','Mixer','Mud Balance','RP',
+  'SGSM OFI#1','SGSM OFI#2','Static Fluid Loss','Stirred Fluid Loss',
+  'TT CTE#1','TT CTE#2','TT OFI','UCA CTE#1','UCA CTE#2',
+  'UCA OFI#1','UCA OFI#2','Viscometer Fann','Viscometer OFI',
+  'Haskel Pump','Maximator Pump','SC Pump'
+];
+
+// ── MSAL ─────────────────────────────────────────────────
+const msalConfig = {
+  auth: {
+    clientId: CLIENT_ID,
+    authority: `https://login.microsoftonline.com/${TENANT_ID}`,
+    redirectUri: window.location.href.split('?')[0]
+  },
+  cache: { cacheLocation: 'sessionStorage' }
+};
+const msalInstance = new msal.PublicClientApplication(msalConfig);
+const scopes = ['Files.ReadWrite','Sites.ReadWrite.All','User.Read'];
+
+let varPartNo = '', varCategory = '', varFromQR = false;
+let selectedEquip = [];
+let driveId = '', itemId = '';
+
+// ── CLOCK ────────────────────────────────────────────────
+function updateClock() {
+  const now = new Date();
+  document.getElementById('clock').textContent =
+    now.getHours().toString().padStart(2,'0') + ':' +
+    now.getMinutes().toString().padStart(2,'0');
+}
+updateClock(); setInterval(updateClock, 10000);
+
+// ── DATE FORMAT ──────────────────────────────────────────
+function formatDate(d) {
+  return `${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()}`;
+}
+
+// ── SCREENS ──────────────────────────────────────────────
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+function setNav(title, showBack, actionText, actionClass, actionFn) {
+  document.getElementById('navTitle').textContent = title;
+  document.getElementById('navBack').style.visibility = showBack ? 'visible' : 'hidden';
+  const na = document.getElementById('navAction');
+  na.textContent = actionText || '';
+  na.className = 'nav-action ' + (actionClass || '');
+  na.onclick = actionFn || null;
+}
+
+// ── AUTH ─────────────────────────────────────────────────
+async function signIn() {
+  try {
+    showLoading(true);
+    await msalInstance.handleRedirectPromise();
+    const accounts = msalInstance.getAllAccounts();
+    if (accounts.length > 0) {
+      await afterLogin();
+    } else {
+      await msalInstance.loginRedirect({ scopes });
+    }
+  } catch(e) {
+    showToast('❌ Login failed: ' + e.message);
+  } finally {
+    showLoading(false);
+  }
+}
+
+async function afterLogin() {
+  // Check URL params (QR scan)
+  const params = new URLSearchParams(window.location.search);
+  varPartNo = params.get('partNo') || '';
+  varCategory = params.get('category') || '';
+  varFromQR = !!varPartNo;
+
+  // Get drive info
+  await getDriveInfo();
+
+  if (varPartNo) {
+    goForm();
+  } else {
+    goScan();
+  }
+}
+
+async function getToken() {
+  const accounts = msalInstance.getAllAccounts();
+  if (!accounts.length) throw new Error('Not signed in');
+  const result = await msalInstance.acquireTokenSilent({ scopes, account: accounts[0] });
+  return result.accessToken;
+}
+
+function signOut() {
+  msalInstance.logoutRedirect();
+}
+
+// ── GRAPH API ────────────────────────────────────────────
+async function getDriveInfo() {
+  try {
+    const token = await getToken();
+    // Get site ID
+    const siteResp = await fetch(
+      `https://graph.microsoft.com/v1.0/sites/emasenergy.sharepoint.com:/sites/og-dpt-ops-lab`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    const siteData = await siteResp.json();
+    const siteId = siteData.id;
+
+    // Get drive
+    const driveResp = await fetch(
+      `https://graph.microsoft.com/v1.0/sites/${siteId}/drives`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    const driveData = await driveResp.json();
+    driveId = driveData.value[0].id;
+
+    // Find file
+    const fileResp = await fetch(
+      `https://graph.microsoft.com/v1.0/drives/${driveId}/root/search(q='${encodeURIComponent(FILE_NAME)}')`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    const fileData = await fileResp.json();
+    const file = fileData.value?.find(f => f.name === FILE_NAME);
+    if (file) itemId = file.id;
+  } catch(e) {
+    console.error('getDriveInfo error:', e);
+  }
+}
+
+async function saveToExcel(row) {
+  const token = await getToken();
+  const url = `https://graph.microsoft.com/v1.0/drives/${driveId}/items/${itemId}/workbook/tables/${TABLE_NAME}/rows`;
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ values: [row] })
+  });
+  if (!resp.ok) {
+    const err = await resp.json();
+    throw new Error(err.error?.message || 'Save failed');
+  }
+  return await resp.json();
+}
+
+// ── NAVIGATION ────────────────────────────────────────────
+function goScan() {
+  varPartNo = ''; varCategory = ''; varFromQR = false;
+  selectedEquip = [];
+  setNav('LAB Usage Log', false, '', '', null);
+  showScreen('scanScreen');
+}
+
+function goForm() {
+  const today = new Date();
+  document.getElementById('dispDate').textContent = formatDate(today);
+  document.getElementById('dispPartNo').textContent = varPartNo || '—';
+  document.getElementById('dispCategory').textContent = varCategory || '—';
+
+  const hasPart = !!varPartNo;
+  document.getElementById('qrBanner').style.display = hasPart ? 'flex' : 'none';
+  document.getElementById('bannerText').textContent = varPartNo + (varCategory ? '  —  ' + varCategory : '');
+  document.getElementById('qrBadge1').style.display = hasPart ? 'inline' : 'none';
+  document.getElementById('qrBadge2').style.display = hasPart ? 'inline' : 'none';
+
+  document.getElementById('qtyInput').value = 1;
+  document.getElementById('projectInput').value = '';
+  selectedEquip = [];
+  renderEquipTags();
+
+  setNav('Spare Parts Usage', true, 'Clear', 'red', confirmClear);
+  showScreen('formScreen');
+}
+
+function goBack() { goScan(); }
+
+function goFormAgain() {
+  document.getElementById('qtyInput').value = 1;
+  document.getElementById('projectInput').value = '';
+  selectedEquip = [];
+  renderEquipTags();
+  setNav('Spare Parts Usage', true, 'Clear', 'red', confirmClear);
+  showScreen('formScreen');
+}
+
+function openManual() {
+  varPartNo = ''; varCategory = ''; varFromQR = false;
+  goForm();
+}
+
+// ── EQUIPMENT TAGS ────────────────────────────────────────
+function renderEquipTags() {
+  const search = document.getElementById('equipSearch').value.toLowerCase();
+  const filtered = EQUIPMENT.filter(e => e.toLowerCase().includes(search));
+  const container = document.getElementById('equipTags');
+  container.innerHTML = filtered.map(e =>
+    `<span class="equip-tag ${selectedEquip.includes(e) ? 'selected' : ''}"
+      onclick="toggleEquip('${e}')">${e}</span>`
+  ).join('');
+}
+function filterEquip() { renderEquipTags(); }
+function toggleEquip(name) {
+  const idx = selectedEquip.indexOf(name);
+  if (idx === -1) selectedEquip.push(name);
+  else selectedEquip.splice(idx, 1);
+  renderEquipTags();
+}
+
+// ── QTY ───────────────────────────────────────────────────
+function changeQty(d) {
+  const el = document.getElementById('qtyInput');
+  el.value = Math.max(0, (parseInt(el.value) || 0) + d);
+}
+
+// ── SAVE ──────────────────────────────────────────────────
+async function handleSave() {
+  const partNo = document.getElementById('dispPartNo').textContent;
+  const qty = parseInt(document.getElementById('qtyInput').value) || 0;
+
+  if (!partNo || partNo === '—') { showToast('⚠  Please enter Part No.'); return; }
+  if (qty <= 0) { showToast('⚠  Qty Used must be greater than 0'); return; }
+
+  const category   = document.getElementById('dispCategory').textContent;
+  const requester  = document.getElementById('requesterSelect').value;
+  const equip      = selectedEquip.join(', ');
+  const project    = document.getElementById('projectInput').value;
+  const dateStr    = document.getElementById('dispDate').textContent;
+
+  showLoading(true);
+  document.getElementById('btnSave').disabled = true;
+
+  try {
+    // Row order must match Excel table columns:
+    // Date | Category | Part No. | Part Name | Qty Used | Requester | Used For Equipment | Used For Project | Status
+    await saveToExcel([dateStr, category === '—' ? '' : category, partNo, '', qty, requester, equip, project, '']);
+
+    // Show success
+    document.getElementById('sPart').textContent    = partNo;
+    document.getElementById('sCat').textContent     = category === '—' ? '—' : category;
+    document.getElementById('sQty').textContent     = qty + ' pcs';
+    document.getElementById('sReq').textContent     = requester;
+    document.getElementById('sEquip').textContent   = equip || '—';
+    document.getElementById('sProject').textContent = project || '—';
+    document.getElementById('sDate').textContent    = dateStr;
+
+    setNav('Saved ✓', false, '', '', null);
+    showScreen('successScreen');
+
+  } catch(e) {
+    showToast('❌ ' + e.message);
+  } finally {
+    showLoading(false);
+    document.getElementById('btnSave').disabled = false;
+  }
+}
+
+// ── CLEAR ─────────────────────────────────────────────────
+function confirmClear() {
+  document.getElementById('qtyInput').value = 1;
+  document.getElementById('projectInput').value = '';
+  document.getElementById('equipSearch').value = '';
+  selectedEquip = [];
+  renderEquipTags();
+  document.getElementById('clearModal').classList.remove('open');
+  showToast('✓  Fields cleared');
+}
+
+// ── TOAST & LOADING ───────────────────────────────────────
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+function showLoading(show) {
+  document.getElementById('loading').classList.toggle('show', show);
+}
+
+// ── INIT ──────────────────────────────────────────────────
+(async () => {
+  await msalInstance.handleRedirectPromise();
+  const accounts = msalInstance.getAllAccounts();
+  if (accounts.length > 0) {
+    showLoading(true);
+    await afterLogin();
+    showLoading(false);
+  }
+  renderEquipTags();
+})();
+</script>
+</body>
+</html>

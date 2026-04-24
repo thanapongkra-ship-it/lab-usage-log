@@ -345,6 +345,10 @@ function setNav(title, showBack, actionText, actionClass, actionFn) {
 async function signIn() {
   try {
     showLoading(true);
+    if (!msalInstance) {
+      msalInstance = new msal.PublicClientApplication(msalConfig);
+      await msalInstance.initialize();
+    }
     await msalInstance.handleRedirectPromise();
     const accounts = msalInstance.getAllAccounts();
     if (accounts.length > 0) {
@@ -354,6 +358,7 @@ async function signIn() {
     }
   } catch(e) {
     showToast('❌ Login failed: ' + e.message);
+    console.error(e);
   } finally {
     showLoading(false);
   }

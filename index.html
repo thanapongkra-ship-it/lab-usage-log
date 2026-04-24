@@ -302,11 +302,11 @@ const msalConfig = {
   auth: {
     clientId: CLIENT_ID,
     authority: `https://login.microsoftonline.com/${TENANT_ID}`,
-    redirectUri: window.location.href.split('?')[0]
+    redirectUri: window.location.origin + window.location.pathname
   },
   cache: { cacheLocation: 'sessionStorage' }
 };
-const msalInstance = new msal.PublicClientApplication(msalConfig);
+let msalInstance;
 const scopes = ['Files.ReadWrite','Sites.ReadWrite.All','User.Read'];
 
 let varPartNo = '', varCategory = '', varFromQR = false;
@@ -572,12 +572,19 @@ function showLoading(show) {
 
 // ── INIT ──────────────────────────────────────────────────
 (async () => {
-  await msalInstance.handleRedirectPromise();
-  const accounts = msalInstance.getAllAccounts();
-  if (accounts.length > 0) {
-    showLoading(true);
-    await afterLogin();
-    showLoading(false);
+  try {
+    msalInstance = new msal.PublicClientApplication(msalConfig);
+    await msalInstance.initialize();
+    await msalInstance.handleRedirectPromise();
+    const accounts = msalInstance.getAllAccounts();
+    if (accounts.length > 0) {
+      showLoading(true);
+      await afterLogin();
+      showLoading(false);
+    }
+  } catch(e) {
+    console.error('Init error:', e);
+    showToast('❌ Init failed: ' + e.message);
   }
   renderEquipTags();
 })();
